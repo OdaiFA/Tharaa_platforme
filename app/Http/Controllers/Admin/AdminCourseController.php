@@ -8,23 +8,14 @@ use App\Http\Requests\Admin\UpdateCourseRequest;
 use App\Models\AgeGroup;
 use App\Models\Course;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class AdminCourseController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $courses = Course::query()
-            ->withCount(['modules', 'enrollments'])
-            ->when($request->input('search'), fn ($q, $search) => $q->where('title', 'like', "%{$search}%"))
-            ->when($request->boolean('published'), fn ($q) => $q->where('is_published', true))
-            ->withTrashed()
-            ->latest()
-            ->paginate(10);
-
-        return view('admin.courses.index', compact('courses'));
+        return view('admin.courses.index');
     }
 
     public function create(): View
