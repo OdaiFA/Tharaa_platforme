@@ -19,4 +19,14 @@ class CategoryFactory extends Factory
             'is_system' => false,
         ];
     }
+
+    public function income(): static
+    {
+        return $this->state(fn () => ['type' => 'income']);
+    }
+
+    public function system(): static
+    {
+        return $this->state(fn () => ['is_system' => true]);
+    }
 }

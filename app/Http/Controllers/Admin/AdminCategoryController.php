@@ -12,16 +12,9 @@ use Illuminate\View\View;
 
 class AdminCategoryController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $type = $request->input('type', 'expense');
-        $categories = Category::query()
-            ->when(in_array($type, ['income', 'expense']), fn ($q) => $q->where('type', $type))
-            ->orderBy('type')
-            ->orderBy('name')
-            ->get();
-
-        return view('admin.categories.index', compact('categories', 'type'));
+        return view('admin.categories.index');
     }
 
     public function store(StoreCategoryRequest $request): RedirectResponse
