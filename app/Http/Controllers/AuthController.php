@@ -42,6 +42,16 @@ class AuthController extends Controller
             ]);
         }
 
+        if (! Auth::user()->is_active) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            throw ValidationException::withMessages([
+                'email' => 'تم إيقاف هذا الحساب. يرجى التواصل مع الإدارة',
+            ]);
+        }
+
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'));

@@ -31,6 +31,7 @@ class User extends Authenticatable
         'financial_level',
         'avatar',
         'role',
+        'is_active',
     ];
 
     protected $hidden = [
@@ -45,6 +46,7 @@ class User extends Authenticatable
             'date_of_birth' => 'date',
             'password' => 'hashed',
             'role' => 'string',
+            'is_active' => 'boolean',
         ];
     }
 

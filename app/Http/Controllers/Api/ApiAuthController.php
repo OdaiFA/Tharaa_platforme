@@ -40,6 +40,12 @@ class ApiAuthController extends Controller
             ]);
         }
 
+        if (! $user->is_active) {
+            throw ValidationException::withMessages([
+                'email' => ['تم إيقاف هذا الحساب. يرجى التواصل مع الإدارة'],
+            ]);
+        }
+
         $token = $user->createToken('api', ['basic'])->plainTextToken;
 
         return response()->json([

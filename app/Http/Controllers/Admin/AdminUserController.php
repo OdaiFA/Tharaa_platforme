@@ -26,13 +26,8 @@ class AdminUserController extends Controller
         DB::transaction(function () use ($request, $user) {
             $data = $request->validated();
 
-            if (isset($data['is_active'])) {
-                if (! $data['is_active'] && $user->id === auth()->id()) {
-                    abort(403, 'لا يمكنك تعطيل حسابك الخاص');
-                }
-
-                $data['deleted_at'] = $data['is_active'] ? null : now();
-                unset($data['is_active']);
+            if (isset($data['is_active']) && ! $data['is_active'] && $user->id === auth()->id()) {
+                abort(403, 'لا يمكنك تعطيل حسابك الخاص');
             }
 
             $user->update($data);
