@@ -12,9 +12,7 @@ class AdminAgeGroupController extends Controller
 {
     public function index(): View
     {
-        $ageGroups = AgeGroup::withCount('users')->orderBy('min_age')->get();
-
-        return view('admin.age-groups.index', compact('ageGroups'));
+        return view('admin.age-groups.index');
     }
 
     public function store(StoreAgeGroupRequest $request): RedirectResponse
