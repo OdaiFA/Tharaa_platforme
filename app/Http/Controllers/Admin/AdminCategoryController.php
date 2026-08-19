@@ -46,9 +46,7 @@ class AdminCategoryController extends Controller
 
     public function articleCategories(): View
     {
-        $categories = ArticleCategory::withCount('articles')->orderBy('name')->get();
-
-        return view('admin.categories.articles', compact('categories'));
+        return view('admin.categories.articles');
     }
 
     public function storeArticleCategory(Request $request): RedirectResponse
