@@ -6,44 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class AdminUserController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $users = User::query()
-            ->with('ageGroup')
-            ->when($request->input('search'), fn ($q, $search) => $q->where(function ($query) use ($search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            }))
-            ->when($request->input('role'), fn ($q, $role) => $q->where('role', $role))
-            ->latest()
-            ->paginate(15);
-
-        return view('admin.users.index', compact('users'));
+        return view('admin.users.index');
     }
 
     public function show(User $user): View
     {
-        $user->load([
-            'accounts',
-            'budgets',
-            'goals',
-            'enrollments.course',
-            'ageGroup',
-        ]);
-
-        $totals = [
-            'balance' => (float) $user->accounts()->sum('balance'),
-            'transactions' => $user->transactions()->count(),
-            'enrollments' => $user->enrollments()->count(),
-        ];
-
-        return view('admin.users.show', compact('user', 'totals'));
+        return view('admin.users.show', compact('user'));
     }
 
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
