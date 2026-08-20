@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\Account;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Exists;
 
 class UpdateTransactionRequest extends FormRequest
 {
@@ -16,7 +17,7 @@ class UpdateTransactionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'account_id' => ['required', 'exists:accounts,id'],
+            'account_id' => ['required', $this->ownAccountRule()],
             'category_id' => ['nullable', 'exists:categories,id'],
             'type' => ['required', Rule::in(['income', 'expense', 'transfer'])],
             'amount' => ['required', 'numeric', 'min:0.01'],
@@ -28,11 +29,23 @@ class UpdateTransactionRequest extends FormRequest
             'transfer_to_account_id' => [
                 'nullable',
                 'required_if:type,transfer',
-                'exists:accounts,id',
+                $this->ownAccountRule(),
                 'different:account_id',
                 $this->sameCurrencyRule(),
             ],
         ];
+    }
+
+    /**
+     * A user may only reference their own accounts — replaces the bare
+     * `exists:accounts,id` rule (which only checked the account exists at
+     * all, not that it belongs to the requester) to close an IDOR where an
+     * account_id/transfer_to_account_id could be ID-guessed to target
+     * another user's account and mutate its balance.
+     */
+    protected function ownAccountRule(): Exists
+    {
+        return Rule::exists('accounts', 'id')->where('user_id', $this->user()->id);
     }
 
     /**
@@ -69,6 +82,7 @@ class UpdateTransactionRequest extends FormRequest
             'amount.min' => 'المبلغ يجب أن يكون أكبر من صفر',
             'transaction_date.required' => 'تاريخ المعاملة مطلوب',
             'recurrence_type.required_if' => 'نوع التكرار مطلوب للمعاملات المتكررة',
+            'transfer_to_account_id.exists' => 'الحساب المحوَّل إليه غير موجود',
             'transfer_to_account_id.different' => 'لا يمكن التحويل إلى نفس الحساب',
         ];
     }

@@ -178,4 +178,49 @@ class TransactionFormTest extends TestCase
     {
         $this->get(route('transactions.create'))->assertRedirect(route('login'));
     }
+
+    /**
+     * IDOR regression: a user must not be able to create a transaction
+     * against another user's account by submitting its ID directly (e.g.
+     * via browser devtools tampering with this Livewire component's
+     * payload).
+     */
+    public function test_transaction_form_rejects_foreign_account(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $foreignAccount = Account::factory()->for($other)->create();
+        $category = Category::factory()->create();
+
+        Livewire::actingAs($user)
+            ->test(TransactionForm::class)
+            ->set('type', 'expense')
+            ->set('account_id', (string) $foreignAccount->id)
+            ->set('category_id', (string) $category->id)
+            ->set('amount', '40')
+            ->call('save')
+            ->assertHasErrors(['account_id']);
+
+        $this->assertDatabaseCount('transactions', 0);
+    }
+
+    public function test_transaction_form_rejects_foreign_transfer_account(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $ownAccount = Account::factory()->for($user)->create(['currency' => 'SAR', 'initial_balance' => 500, 'balance' => 500]);
+        $foreignAccount = Account::factory()->for($other)->create(['currency' => 'SAR']);
+
+        Livewire::actingAs($user)
+            ->test(TransactionForm::class)
+            ->set('type', 'transfer')
+            ->set('account_id', (string) $ownAccount->id)
+            ->set('transfer_to_account_id', (string) $foreignAccount->id)
+            ->set('amount', '50')
+            ->call('save')
+            ->assertHasErrors(['transfer_to_account_id']);
+
+        $this->assertDatabaseCount('transactions', 0);
+        $this->assertEquals(500, $ownAccount->fresh()->balance);
+    }
 }

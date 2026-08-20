@@ -25,7 +25,12 @@ class TransactionService
     public function create(array $data): Transaction
     {
         return DB::transaction(function () use ($data) {
+            $ownerId = (int) $data['user_id'];
+
+            $this->assertAccountOwnership((int) $data['account_id'], $ownerId);
+
             if (($data['type'] ?? null) === 'transfer') {
+                $this->assertAccountOwnership((int) $data['transfer_to_account_id'], $ownerId);
                 $this->assertValidTransfer(
                     (int) $data['account_id'],
                     (int) $data['transfer_to_account_id'],
@@ -53,12 +58,18 @@ class TransactionService
     public function update(Transaction $transaction, array $data): Transaction
     {
         return DB::transaction(function () use ($transaction, $data) {
+            $ownerId = $transaction->user_id;
             $newType = $data['type'] ?? $transaction->type;
+            $newAccountId = (int) ($data['account_id'] ?? $transaction->account_id);
+            $newTransferToAccountId = (int) ($data['transfer_to_account_id'] ?? $transaction->transfer_to_account_id);
+
+            $this->assertAccountOwnership($newAccountId, $ownerId);
 
             if ($newType === 'transfer') {
+                $this->assertAccountOwnership($newTransferToAccountId, $ownerId);
                 $this->assertValidTransfer(
-                    (int) ($data['account_id'] ?? $transaction->account_id),
-                    (int) ($data['transfer_to_account_id'] ?? $transaction->transfer_to_account_id),
+                    $newAccountId,
+                    $newTransferToAccountId,
                     (float) ($data['amount'] ?? $transaction->amount),
                     excludeTransactionId: $transaction->id,
                 );
@@ -280,6 +291,27 @@ class TransactionService
      * @throws \InvalidArgumentException currency mismatch
      * @throws \DomainException insufficient balance
      */
+    /**
+     * Service-layer ownership guard (defense in depth behind the
+     * request-validation-level check already applied in
+     * StoreTransactionRequest/UpdateTransactionRequest/TransactionForm).
+     * Every account_id/transfer_to_account_id a transaction ever touches
+     * must belong to the transaction's own owner — this is the single
+     * choke point every create()/update() path (Web, Livewire, API,
+     * transfer(), recurring templates) runs through, so no caller can
+     * bypass it even if a validation layer is ever skipped or missed.
+     *
+     * @throws \InvalidArgumentException the account doesn't exist or isn't owned by $userId
+     */
+    private function assertAccountOwnership(int $accountId, int $userId): void
+    {
+        $account = Account::find($accountId);
+
+        if (! $account || (int) $account->user_id !== $userId) {
+            throw new \InvalidArgumentException('لا يمكنك استخدام حساب لا تملكه');
+        }
+    }
+
     private function assertValidTransfer(int $fromAccountId, int $toAccountId, float $amount, ?int $excludeTransactionId = null): void
     {
         $from = Account::findOrFail($fromAccountId);
