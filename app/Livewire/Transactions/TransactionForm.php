@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Transactions;
 
+use App\Models\Account;
 use App\Models\Category;
 use App\Models\Transaction;
 use Illuminate\Validation\Rule;
@@ -61,7 +62,13 @@ class TransactionForm extends Component
             'description' => ['nullable', 'string', 'max:1000'],
             'transaction_date' => ['required', 'date'],
             'recurrence_end_date' => ['nullable', 'date', 'after_or_equal:transaction_date'],
-            'transfer_to_account_id' => ['nullable', 'required_if:type,transfer', 'exists:accounts,id', 'different:account_id'],
+            'transfer_to_account_id' => [
+                'nullable',
+                'required_if:type,transfer',
+                'exists:accounts,id',
+                'different:account_id',
+                $this->sameCurrencyRule(),
+            ],
         ];
 
         if (! $this->transactionId) {
@@ -71,6 +78,27 @@ class TransactionForm extends Component
         }
 
         return $rules;
+    }
+
+    /**
+     * No FX conversion exists in this codebase, so a transfer must stay
+     * within the same currency — otherwise `amount` would be moved unchanged
+     * into a differently-valued currency, which is financially incorrect.
+     */
+    protected function sameCurrencyRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if (! $value || ! $this->account_id) {
+                return;
+            }
+
+            $from = Account::find($this->account_id);
+            $to = Account::find($value);
+
+            if ($from && $to && $from->currency !== $to->currency) {
+                $fail('لا يمكن التحويل بين حسابين بعملتين مختلفتين');
+            }
+        };
     }
 
     protected function messages(): array
@@ -103,17 +131,26 @@ class TransactionForm extends Component
         $validated['category_id'] = $validated['category_id'] ?: null;
         $validated['transfer_to_account_id'] = $validated['transfer_to_account_id'] ?: null;
 
-        if ($this->transactionId) {
-            $transaction = Transaction::findOrFail($this->transactionId);
-            $this->authorize('update', $transaction);
-            $transactionService->update($transaction, $validated);
-            session()->flash('success', 'تم تحديث المعاملة بنجاح');
-        } else {
-            $validated['is_recurring'] = $this->is_recurring;
-            $transactionService->create(array_merge($validated, [
-                'user_id' => auth()->id(),
-            ]));
-            session()->flash('success', 'تم إضافة المعاملة بنجاح');
+        try {
+            if ($this->transactionId) {
+                $transaction = Transaction::findOrFail($this->transactionId);
+                $this->authorize('update', $transaction);
+                $transactionService->update($transaction, $validated);
+                session()->flash('success', 'تم تحديث المعاملة بنجاح');
+            } else {
+                $validated['is_recurring'] = $this->is_recurring;
+                $transactionService->create(array_merge($validated, [
+                    'user_id' => auth()->id(),
+                ]));
+                session()->flash('success', 'تم إضافة المعاملة بنجاح');
+            }
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            // TransactionService enforces same-currency + sufficient-balance
+            // for transfers regardless of caller — surface it as an inline
+            // form error instead of an uncaught exception.
+            $this->addError('amount', $e->getMessage());
+
+            return;
         }
 
         return redirect()->route('transactions.index');

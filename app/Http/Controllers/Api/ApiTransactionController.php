@@ -30,9 +30,13 @@ class ApiTransactionController extends Controller
 
     public function store(StoreTransactionRequest $request): JsonResponse
     {
-        $transaction = $this->service->create(array_merge($request->validated(), [
-            'user_id' => $request->user()->id,
-        ]));
+        try {
+            $transaction = $this->service->create(array_merge($request->validated(), [
+                'user_id' => $request->user()->id,
+            ]));
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         return (new TransactionResource($transaction->load(['account', 'category', 'transferToAccount'])))
             ->response()
@@ -50,7 +54,11 @@ class ApiTransactionController extends Controller
     {
         $this->authorize('update', $transaction);
 
-        $transaction = $this->service->update($transaction, $request->validated());
+        try {
+            $transaction = $this->service->update($transaction, $request->validated());
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         return new TransactionResource($transaction->load(['account', 'category', 'transferToAccount']));
     }

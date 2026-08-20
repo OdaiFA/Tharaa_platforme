@@ -103,6 +103,41 @@ class GoalServiceTest extends TestCase
         $this->assertSame('active', $goal->fresh()->status);
     }
 
+    /**
+     * KNOWN GAP — documented, not silently fixed (see
+     * docs/financial-hardening/MULTI_CURRENCY_FINANCIAL_HARDENING.md,
+     * "Goal Currency Rule").
+     *
+     * The `goals` table has no `currency` column, and `goal_contributions`'
+     * `account_id` is nullable, so there is no reliable way to derive "the"
+     * currency of a goal from existing schema without a migration. This
+     * test documents the current, unenforced behavior: contributions from
+     * accounts of different currencies are both accepted and summed
+     * directly into `current_amount` with no currency tracking at all.
+     * If this test ever starts failing because contribute() now rejects
+     * a currency mismatch, update this test and the "Goal Currency Rule"
+     * section of the doc together — don't just delete it.
+     */
+    public function test_contributions_from_different_currency_accounts_are_not_currently_currency_checked(): void
+    {
+        Event::fake([\App\Events\GoalContributionAdded::class]);
+
+        $user = User::factory()->create();
+        $sarAccount = Account::factory()->create(['user_id' => $user->id, 'currency' => 'SAR', 'balance' => 1000]);
+        $usdAccount = Account::factory()->create(['user_id' => $user->id, 'currency' => 'USD', 'balance' => 1000]);
+        $goal = Goal::factory()->create(['user_id' => $user->id, 'target_amount' => 10000, 'current_amount' => 0]);
+
+        $service = app(GoalService::class);
+        $service->contribute($goal, 100, $sarAccount->id);
+        $service->contribute($goal, 100, $usdAccount->id);
+
+        // Both contributions succeed and are summed together, even though
+        // they are drawn from accounts in different currencies — this is
+        // the exact gap flagged as GOAL CURRENCY DECISION REQUIRED.
+        $this->assertSame(200.0, (float) $goal->fresh()->current_amount);
+        $this->assertSame(2, $goal->contributions()->count());
+    }
+
     public function test_milestones_reflect_progress(): void
     {
         $user = User::factory()->create();

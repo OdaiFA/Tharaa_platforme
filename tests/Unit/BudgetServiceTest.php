@@ -90,6 +90,86 @@ class BudgetServiceTest extends TestCase
         $this->assertSame(90, $service->calculateConsumption($budget)['percentage']);
     }
 
+    public function test_consumption_only_includes_transactions_matching_the_budgets_currency(): void
+    {
+        $user = User::factory()->create();
+        $category = Category::factory()->create(['type' => 'expense']);
+        $sarAccount = \App\Models\Account::factory()->create(['user_id' => $user->id, 'currency' => 'SAR']);
+        $usdAccount = \App\Models\Account::factory()->create(['user_id' => $user->id, 'currency' => 'USD']);
+
+        $budget = Budget::factory()->create([
+            'user_id' => $user->id,
+            'currency' => 'SAR',
+            'total_amount' => 1000,
+            'start_date' => now()->startOfMonth()->toDateString(),
+            'end_date' => now()->endOfMonth()->toDateString(),
+        ]);
+
+        Transaction::factory()->expense()->create([
+            'user_id' => $user->id,
+            'account_id' => $sarAccount->id,
+            'category_id' => $category->id,
+            'amount' => 250,
+            'transaction_date' => now()->toDateString(),
+        ]);
+
+        // A USD expense must never inflate a SAR budget's consumption.
+        Transaction::factory()->expense()->create([
+            'user_id' => $user->id,
+            'account_id' => $usdAccount->id,
+            'category_id' => $category->id,
+            'amount' => 900,
+            'transaction_date' => now()->toDateString(),
+        ]);
+
+        $consumption = app(BudgetService::class)->calculateConsumption($budget);
+
+        $this->assertSame(250.0, $consumption['spent']);
+    }
+
+    public function test_category_consumption_only_includes_transactions_matching_the_budgets_currency(): void
+    {
+        $user = User::factory()->create();
+        $category = Category::factory()->create(['type' => 'expense']);
+        $sarAccount = \App\Models\Account::factory()->create(['user_id' => $user->id, 'currency' => 'SAR']);
+        $usdAccount = \App\Models\Account::factory()->create(['user_id' => $user->id, 'currency' => 'USD']);
+
+        $budget = Budget::factory()->create([
+            'user_id' => $user->id,
+            'currency' => 'SAR',
+            'total_amount' => 5000,
+            'start_date' => now()->startOfMonth()->toDateString(),
+            'end_date' => now()->endOfMonth()->toDateString(),
+        ]);
+
+        \App\Models\BudgetCategory::factory()->create([
+            'budget_id' => $budget->id,
+            'category_id' => $category->id,
+            'limit_amount' => 400,
+        ]);
+
+        Transaction::factory()->expense()->create([
+            'user_id' => $user->id,
+            'account_id' => $sarAccount->id,
+            'category_id' => $category->id,
+            'amount' => 100,
+            'transaction_date' => now()->toDateString(),
+        ]);
+
+        Transaction::factory()->expense()->create([
+            'user_id' => $user->id,
+            'account_id' => $usdAccount->id,
+            'category_id' => $category->id,
+            'amount' => 300,
+            'transaction_date' => now()->toDateString(),
+        ]);
+
+        $rows = app(BudgetService::class)->calculateCategoryConsumption($budget);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame(100.0, $rows[0]['spent']);
+    }
+
     public function test_category_consumption_respects_category_limit(): void
     {
         $user = User::factory()->create();

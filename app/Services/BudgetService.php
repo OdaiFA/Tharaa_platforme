@@ -16,11 +16,16 @@ class BudgetService
      */
     public function calculateConsumption(Budget $budget): array
     {
+        // Transactions carry no currency of their own (it's implied by
+        // their account) — only include transactions whose account matches
+        // the budget's own currency, so spend in a different currency never
+        // silently inflates this budget's consumption.
         $spent = (float) Transaction::query()
             ->forUser($budget->user_id)
             ->expense()
             ->whereBetween('transaction_date', [$budget->start_date, $budget->end_date])
             ->whereNull('deleted_at')
+            ->whereHas('account', fn ($q) => $q->where('currency', $budget->currency))
             ->sum('amount');
 
         $total = (float) $budget->total_amount;
@@ -51,6 +56,7 @@ class BudgetService
                     ->where('category_id', $bc->category_id)
                     ->whereBetween('transaction_date', [$budget->start_date, $budget->end_date])
                     ->whereNull('deleted_at')
+                    ->whereHas('account', fn ($q) => $q->where('currency', $budget->currency))
                     ->sum('amount');
 
                 $limit = (float) $bc->limit_amount;

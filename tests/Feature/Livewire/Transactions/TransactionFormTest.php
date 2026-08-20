@@ -78,6 +78,62 @@ class TransactionFormTest extends TestCase
             ->assertHasErrors(['transfer_to_account_id']);
     }
 
+    public function test_cross_currency_transfer_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $from = Account::factory()->for($user)->create(['currency' => 'SAR', 'initial_balance' => 500]);
+        $to = Account::factory()->for($user)->create(['currency' => 'USD', 'initial_balance' => 0]);
+
+        Livewire::actingAs($user)
+            ->test(TransactionForm::class)
+            ->set('type', 'transfer')
+            ->set('account_id', (string) $from->id)
+            ->set('transfer_to_account_id', (string) $to->id)
+            ->set('amount', '50')
+            ->call('save')
+            ->assertHasErrors(['transfer_to_account_id']);
+
+        $this->assertDatabaseCount('transactions', 0);
+    }
+
+    public function test_transfer_within_balance_succeeds(): void
+    {
+        $user = User::factory()->create();
+        $from = Account::factory()->for($user)->create(['currency' => 'SAR', 'initial_balance' => 1000]);
+        $to = Account::factory()->for($user)->create(['currency' => 'SAR', 'initial_balance' => 0]);
+
+        Livewire::actingAs($user)
+            ->test(TransactionForm::class)
+            ->set('type', 'transfer')
+            ->set('account_id', (string) $from->id)
+            ->set('transfer_to_account_id', (string) $to->id)
+            ->set('amount', '200')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertEquals(800, $from->fresh()->balance);
+        $this->assertEquals(200, $to->fresh()->balance);
+    }
+
+    public function test_transfer_exceeding_balance_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $from = Account::factory()->for($user)->create(['currency' => 'SAR', 'initial_balance' => 1000, 'balance' => 1000]);
+        $to = Account::factory()->for($user)->create(['currency' => 'SAR', 'initial_balance' => 0, 'balance' => 0]);
+
+        Livewire::actingAs($user)
+            ->test(TransactionForm::class)
+            ->set('type', 'transfer')
+            ->set('account_id', (string) $from->id)
+            ->set('transfer_to_account_id', (string) $to->id)
+            ->set('amount', '1200')
+            ->call('save')
+            ->assertHasErrors(['amount']);
+
+        $this->assertDatabaseCount('transactions', 0);
+        $this->assertEquals(1000, $from->fresh()->balance);
+    }
+
     public function test_required_fields_are_validated(): void
     {
         $user = User::factory()->create();

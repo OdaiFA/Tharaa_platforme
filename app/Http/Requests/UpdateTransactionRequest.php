@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Account;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,8 +25,35 @@ class UpdateTransactionRequest extends FormRequest
             'is_recurring' => ['sometimes', 'boolean'],
             'recurrence_type' => ['nullable', 'required_if:is_recurring,true', Rule::in(['daily', 'weekly', 'monthly', 'yearly'])],
             'recurrence_end_date' => ['nullable', 'date', 'after_or_equal:transaction_date'],
-            'transfer_to_account_id' => ['nullable', 'required_if:type,transfer', 'exists:accounts,id', 'different:account_id'],
+            'transfer_to_account_id' => [
+                'nullable',
+                'required_if:type,transfer',
+                'exists:accounts,id',
+                'different:account_id',
+                $this->sameCurrencyRule(),
+            ],
         ];
+    }
+
+    /**
+     * No FX conversion exists in this codebase, so a transfer must stay
+     * within the same currency — otherwise `amount` would be moved unchanged
+     * into a differently-valued currency, which is financially incorrect.
+     */
+    protected function sameCurrencyRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if (! $value || ! $this->input('account_id')) {
+                return;
+            }
+
+            $from = Account::find($this->input('account_id'));
+            $to = Account::find($value);
+
+            if ($from && $to && $from->currency !== $to->currency) {
+                $fail('لا يمكن التحويل بين حسابين بعملتين مختلفتين');
+            }
+        };
     }
 
     public function messages(): array

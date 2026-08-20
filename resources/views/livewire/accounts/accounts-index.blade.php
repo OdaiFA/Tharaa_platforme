@@ -14,7 +14,7 @@
                 <div class="relative flex items-start justify-between">
                     <div>
                         <p class="text-sm text-slate-300">{{ $account->name }}</p>
-                        <p class="font-num mt-3 text-2xl font-bold">{{ number_format($account->balance, 2) }} {{ auth()->user()->currency }}</p>
+                        <p class="font-num mt-3 text-2xl font-bold">{{ number_format($account->balance, 2) }} {{ $account->currency }}</p>
                         <p class="mt-1 text-xs text-slate-400">{{ $account->type }} · {{ $account->transactions_count }} معاملة</p>
                     </div>
                     <span class="h-2 w-2 rounded-full {{ $account->is_active ? 'bg-green-400' : 'bg-gray-400' }}"></span>

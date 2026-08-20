@@ -8,7 +8,11 @@
     <div class="grid grid-cols-3 gap-4">
         <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <p class="text-xs font-medium text-gray-500">إجمالي الأرصدة</p>
-            <p class="mt-1 text-xl font-extrabold text-gray-900">{{ number_format($totals['balance'], 2) }}</p>
+            @forelse ($totals['balanceByCurrency'] as $currency => $amount)
+                <p class="mt-1 text-xl font-extrabold text-gray-900">{{ number_format($amount, 2) }} <span class="text-sm font-medium text-gray-400">{{ $currency }}</span></p>
+            @empty
+                <p class="mt-1 text-xl font-extrabold text-gray-900">0.00</p>
+            @endforelse
         </div>
         <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <p class="text-xs font-medium text-gray-500">المعاملات</p>

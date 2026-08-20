@@ -25,6 +25,14 @@ class TransactionService
     public function create(array $data): Transaction
     {
         return DB::transaction(function () use ($data) {
+            if (($data['type'] ?? null) === 'transfer') {
+                $this->assertValidTransfer(
+                    (int) $data['account_id'],
+                    (int) $data['transfer_to_account_id'],
+                    (float) $data['amount'],
+                );
+            }
+
             $transaction = Transaction::create($data);
 
             $this->recalculateAccounts($transaction);
@@ -45,6 +53,17 @@ class TransactionService
     public function update(Transaction $transaction, array $data): Transaction
     {
         return DB::transaction(function () use ($transaction, $data) {
+            $newType = $data['type'] ?? $transaction->type;
+
+            if ($newType === 'transfer') {
+                $this->assertValidTransfer(
+                    (int) ($data['account_id'] ?? $transaction->account_id),
+                    (int) ($data['transfer_to_account_id'] ?? $transaction->transfer_to_account_id),
+                    (float) ($data['amount'] ?? $transaction->amount),
+                    excludeTransactionId: $transaction->id,
+                );
+            }
+
             $oldAccountIds = $transaction->type === 'transfer'
                 ? [$transaction->account_id, $transaction->transfer_to_account_id]
                 : [$transaction->account_id];
@@ -99,6 +118,11 @@ class TransactionService
 
     /**
      * Transfer money between two accounts of the same user (BR-FIN-003).
+     *
+     * Restricted to same-currency accounts: there is no exchange-rate source
+     * in this codebase, so moving `amount` unchanged into a differently
+     * currencied account would silently misrepresent its value. This is the
+     * MVP-safe default until a real FX conversion feature exists.
      */
     public function transfer(int $fromAccountId, int $toAccountId, float $amount, string $description = null, $date = null): Transaction
     {
@@ -113,9 +137,10 @@ class TransactionService
             throw new \InvalidArgumentException('مبلغ التحويل يجب أن يكون أكبر من صفر');
         }
 
-        if ((float) $from->balance < $amount) {
-            throw new \DomainException('رصيد الحساب المصدر غير كافٍ');
-        }
+        // create() re-validates currency + balance for every transfer path
+        // (Web/Livewire, API, this helper); kept here too so the exception
+        // surfaces before any account lookup work below is wasted.
+        $this->assertValidTransfer($from->id, $to->id, $amount);
 
         return $this->create([
             'user_id' => $from->user_id,
@@ -144,7 +169,11 @@ class TransactionService
             })
             ->chunkById(200, function ($templates) use (&$created) {
                 foreach ($templates as $template) {
-                    if (! $this->alreadyProcessedToday($template)) {
+                    if ($this->alreadyProcessedToday($template)) {
+                        continue;
+                    }
+
+                    try {
                         $this->create([
                             'user_id' => $template->user_id,
                             'account_id' => $template->account_id,
@@ -157,6 +186,14 @@ class TransactionService
                             'transfer_to_account_id' => $template->transfer_to_account_id,
                         ]);
                         $created++;
+                    } catch (\DomainException|\InvalidArgumentException $e) {
+                        // A recurring transfer template can become invalid
+                        // over time (source balance no longer sufficient, or
+                        // one of the accounts was changed/closed). Skip just
+                        // this occurrence rather than aborting the whole
+                        // batch — other users' recurring transactions must
+                        // still process.
+                        continue;
                     }
                 }
             });
@@ -227,6 +264,57 @@ class TransactionService
                     BudgetThresholdReached::dispatch($budget, $transaction);
                 }
             });
+    }
+
+    /**
+     * The single choke point every transfer-creating path (Web/Livewire
+     * TransactionForm, API ApiTransactionController, the transfer() helper,
+     * recurring transfer templates) ends up calling through create()/
+     * update() — enforced here once so no path can bypass it, rather than
+     * relying on each caller's own validation layer to remember to check.
+     *
+     * Same-currency is required because no exchange-rate source exists in
+     * this codebase (see docs/financial-hardening). Sufficient balance
+     * mirrors the check transfer() already had, now applied consistently.
+     *
+     * @throws \InvalidArgumentException currency mismatch
+     * @throws \DomainException insufficient balance
+     */
+    private function assertValidTransfer(int $fromAccountId, int $toAccountId, float $amount, ?int $excludeTransactionId = null): void
+    {
+        $from = Account::findOrFail($fromAccountId);
+        $to = Account::findOrFail($toAccountId);
+
+        if ($from->currency !== $to->currency) {
+            throw new \InvalidArgumentException('لا يمكن التحويل بين حسابين بعملتين مختلفتين');
+        }
+
+        $currentBalance = $this->currentAccountBalance($from, $excludeTransactionId);
+
+        if ($currentBalance < $amount) {
+            throw new \DomainException('رصيد الحساب المصدر غير كافٍ');
+        }
+    }
+
+    /**
+     * The account's true balance recomputed from its transactions (same
+     * formula as recalculateAccount(), but unfloored and with the option to
+     * exclude one transaction — used to validate an edit against what the
+     * balance would be without double-counting the transaction being
+     * changed).
+     */
+    private function currentAccountBalance(Account $account, ?int $excludeTransactionId = null): float
+    {
+        $scoped = fn () => Transaction::query()
+            ->whereNull('deleted_at')
+            ->when($excludeTransactionId, fn ($q) => $q->where('id', '!=', $excludeTransactionId));
+
+        $income = $scoped()->where('account_id', $account->id)->income()->sum('amount');
+        $expense = $scoped()->where('account_id', $account->id)->expense()->sum('amount');
+        $outgoing = $scoped()->where('account_id', $account->id)->transfer()->sum('amount');
+        $incoming = $scoped()->where('transfer_to_account_id', $account->id)->where('type', 'transfer')->sum('amount');
+
+        return (float) $account->initial_balance + (float) $income - (float) $expense - (float) $outgoing + (float) $incoming;
     }
 
     private function recalculateAccounts(Transaction $transaction): void

@@ -31,18 +31,33 @@
                         <svg class="h-5 w-5 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
                     </span>
                 </div>
-                <p class="font-num mt-3 text-3xl font-bold">{{ number_format($totalBalance, 2) }}</p>
-                <p class="mt-0.5 text-xs text-slate-400">{{ auth()->user()->currency }}</p>
+                @forelse ($balanceByCurrency as $currency => $amount)
+                    <p class="font-num mt-3 text-3xl font-bold">{{ number_format($amount, 2) }}</p>
+                    <p class="mt-0.5 text-xs text-slate-400">{{ $currency }}</p>
+                @empty
+                    <p class="font-num mt-3 text-3xl font-bold">0.00</p>
+                    <p class="mt-0.5 text-xs text-slate-400">{{ auth()->user()->currency }}</p>
+                @endforelse
             </div>
             <div class="rounded-2xl border border-green-100 bg-green-50 p-6">
                 <p class="text-sm font-medium text-green-700">مداخيل هذا الشهر</p>
-                <p class="font-num mt-3 text-2xl font-extrabold text-green-700">{{ number_format($income, 2) }}</p>
-                <p class="mt-0.5 text-xs text-green-600/70">{{ auth()->user()->currency }}</p>
+                @forelse ($incomeByCurrency as $currency => $amount)
+                    <p class="font-num mt-3 text-2xl font-extrabold text-green-700">{{ number_format($amount, 2) }}</p>
+                    <p class="mt-0.5 text-xs text-green-600/70">{{ $currency }}</p>
+                @empty
+                    <p class="font-num mt-3 text-2xl font-extrabold text-green-700">0.00</p>
+                    <p class="mt-0.5 text-xs text-green-600/70">{{ auth()->user()->currency }}</p>
+                @endforelse
             </div>
             <div class="rounded-2xl border border-red-100 bg-red-50 p-6">
                 <p class="text-sm font-medium text-red-700">مصاريف هذا الشهر</p>
-                <p class="font-num mt-3 text-2xl font-extrabold text-red-700">{{ number_format($expense, 2) }}</p>
-                <p class="mt-0.5 text-xs text-red-600/70">{{ auth()->user()->currency }}</p>
+                @forelse ($expenseByCurrency as $currency => $amount)
+                    <p class="font-num mt-3 text-2xl font-extrabold text-red-700">{{ number_format($amount, 2) }}</p>
+                    <p class="mt-0.5 text-xs text-red-600/70">{{ $currency }}</p>
+                @empty
+                    <p class="font-num mt-3 text-2xl font-extrabold text-red-700">0.00</p>
+                    <p class="mt-0.5 text-xs text-red-600/70">{{ auth()->user()->currency }}</p>
+                @endforelse
             </div>
         </div>
 

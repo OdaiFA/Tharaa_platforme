@@ -23,9 +23,11 @@ class DashboardController extends Controller
         $startOfMonth = now()->startOfMonth();
         $endOfMonth = now()->endOfMonth();
 
-        $income = $this->transactions->incomeForPeriod($user->id, $startOfMonth, $endOfMonth);
-        $expense = $this->transactions->expenseForPeriod($user->id, $startOfMonth, $endOfMonth);
-        $totalBalance = $this->accounts->totalBalanceForUser($user->id);
+        // Grouped by currency, never summed across currencies — see
+        // AccountRepository::totalBalanceForUser() / TransactionRepository::incomeForPeriod().
+        $incomeByCurrency = $this->transactions->incomeForPeriod($user->id, $startOfMonth, $endOfMonth);
+        $expenseByCurrency = $this->transactions->expenseForPeriod($user->id, $startOfMonth, $endOfMonth);
+        $balanceByCurrency = $this->accounts->totalBalanceForUser($user->id);
 
         $recentTransactions = $this->transactions->recentForUser($user->id, 6);
 
@@ -49,9 +51,9 @@ class DashboardController extends Controller
             ]);
 
         return view('dashboard.index', compact(
-            'income',
-            'expense',
-            'totalBalance',
+            'incomeByCurrency',
+            'expenseByCurrency',
+            'balanceByCurrency',
             'recentTransactions',
             'enrollments',
             'goals',
