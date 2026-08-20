@@ -5,10 +5,75 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
+/*
+ * Thmanyah Sans — primary UI typeface (body, nav, forms, tables, cards, admin/user interface).
+ * Local files only, no external font requests. See docs/design-system/THMANYAH_TYPOGRAPHY.md.
+ */
+@font-face {
+    font-family: 'Thmanyah Sans';
+    src: url('../fonts/thmanyah/thmanyahsans-Light.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Thmanyah Sans';
+    src: url('../fonts/thmanyah/thmanyahsans-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Thmanyah Sans';
+    src: url('../fonts/thmanyah/thmanyahsans-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Thmanyah Sans';
+    src: url('../fonts/thmanyah/thmanyahsans-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Thmanyah Sans';
+    src: url('../fonts/thmanyah/thmanyahsans-Black.woff2') format('woff2');
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+/*
+ * Thmanyah Serif Display — reserved for prominent display headings only (hero, major
+ * marketing headlines). Only Bold/Black were supplied; do not fake missing weights.
+ */
+@font-face {
+    font-family: 'Thmanyah Serif Display';
+    src: url('../fonts/thmanyah/thmanyahserifdisplay-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Thmanyah Serif Display';
+    src: url('../fonts/thmanyah/thmanyahserifdisplay-Black.woff2') format('woff2');
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
 @theme {
-    --font-sans: 'Tajawal', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
-    --font-num: 'IBM Plex Sans Arabic', 'Tajawal', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Thmanyah Sans', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display: 'Thmanyah Serif Display', Georgia, 'Times New Roman', serif;
+    --font-num: 'Thmanyah Sans', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
 
     --color-primary-50: #ecfdf5;
     --color-primary-100: #d3f7e7;

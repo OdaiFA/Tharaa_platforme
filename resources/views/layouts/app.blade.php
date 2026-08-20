@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', config('app.name', 'ثراء')) — منصة ثراء للتعليم المالي</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preload" href="{{ \Illuminate\Support\Facades\Vite::asset('resources/fonts/thmanyah/thmanyahsans-Regular.woff2') }}" as="font" type="font/woff2" crossorigin>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @livewireStyles
 </head>
 <body x-data class="min-h-screen bg-[#f8fafc] text-gray-900">
 
@@ -86,5 +85,6 @@
         });
     </script>
     @stack('scripts')
+    @livewireScriptConfig
 </body>
 </html>

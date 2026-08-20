@@ -17,7 +17,7 @@
                     تعلّم، وادخّر، ونمّ ثروتك بذكاء
                 </div>
 
-                <h1 class="text-4xl font-extrabold leading-[1.3] md:text-5xl md:leading-[1.3]">
+                <h1 class="font-display text-4xl font-black leading-[1.3] md:text-5xl md:leading-[1.3]">
                     منصة
                     <span class="bg-gold-gradient bg-clip-text text-transparent">ثراء</span>
                     <br>للثقافة المالية

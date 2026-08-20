@@ -20,16 +20,12 @@ class GoalController extends Controller
 
     public function index(): View
     {
-        $goals = $this->goals->activeForUser(auth()->id());
-
-        return view('goals.index', compact('goals'));
+        return view('goals.index');
     }
 
     public function create(): View
     {
-        $accounts = auth()->user()->accounts()->active()->get();
-
-        return view('goals.create', compact('accounts'));
+        return view('goals.create');
     }
 
     public function store(StoreGoalRequest $request): RedirectResponse

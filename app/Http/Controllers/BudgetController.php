@@ -19,20 +19,12 @@ class BudgetController extends Controller
 
     public function index(): View
     {
-        $budgets = $this->budgets->activeForUser(auth()->id())
-            ->map(fn ($budget) => [
-                'budget' => $budget,
-                'consumption' => $this->budgetService->calculateConsumption($budget),
-            ]);
-
-        return view('budgets.index', compact('budgets'));
+        return view('budgets.index');
     }
 
     public function create(): View
     {
-        $categories = $this->budgets->expenseCategories();
-
-        return view('budgets.create', compact('categories'));
+        return view('budgets.create');
     }
 
     public function store(StoreBudgetRequest $request): RedirectResponse
@@ -56,19 +48,14 @@ class BudgetController extends Controller
     {
         $this->authorize('view', $budget);
 
-        $consumption = $this->budgetService->calculateConsumption($budget);
-        $categories = $this->budgetService->calculateCategoryConsumption($budget);
-
-        return view('budgets.show', compact('budget', 'consumption', 'categories'));
+        return view('budgets.show', compact('budget'));
     }
 
     public function edit(Budget $budget): View
     {
         $this->authorize('update', $budget);
 
-        $categories = $this->budgets->expenseCategories();
-
-        return view('budgets.edit', compact('budget', 'categories'));
+        return view('budgets.edit', compact('budget'));
     }
 
     public function update(UpdateBudgetRequest $request, Budget $budget): RedirectResponse

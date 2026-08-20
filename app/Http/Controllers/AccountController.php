@@ -15,9 +15,7 @@ class AccountController extends Controller
 
     public function index(): View
     {
-        $accounts = $this->accounts->query(auth()->id())->withCount('transactions')->paginate(10);
-
-        return view('accounts.index', compact('accounts'));
+        return view('accounts.index');
     }
 
     public function create(): View

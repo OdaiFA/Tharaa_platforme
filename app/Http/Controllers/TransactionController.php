@@ -20,27 +20,12 @@ class TransactionController extends Controller
 
     public function index(): View
     {
-        $transactions = $this->transactions->query(auth()->id())
-            ->with(['account', 'category', 'transferToAccount'])
-            ->when(request('type'), fn ($q, $type) => $q->where('type', $type))
-            ->when(request('account_id'), fn ($q, $id) => $q->where('account_id', $id))
-            ->when(request('from'), fn ($q, $from) => $q->whereDate('transaction_date', '>=', $from))
-            ->when(request('to'), fn ($q, $to) => $q->whereDate('transaction_date', '<=', $to))
-            ->latest('transaction_date')
-            ->paginate(15);
-
-        $accounts = auth()->user()->accounts()->active()->get();
-
-        return view('transactions.index', compact('transactions', 'accounts'));
+        return view('transactions.index');
     }
 
     public function create(): View
     {
-        $accounts = auth()->user()->accounts()->active()->get();
-        $incomeCategories = \App\Models\Category::query()->income()->orderBy('name')->get();
-        $expenseCategories = \App\Models\Category::query()->expense()->orderBy('name')->get();
-
-        return view('transactions.create', compact('accounts', 'incomeCategories', 'expenseCategories'));
+        return view('transactions.create');
     }
 
     public function store(StoreTransactionRequest $request): RedirectResponse
@@ -56,11 +41,7 @@ class TransactionController extends Controller
     {
         $this->authorize('update', $transaction);
 
-        $accounts = auth()->user()->accounts()->active()->get();
-        $incomeCategories = \App\Models\Category::query()->income()->orderBy('name')->get();
-        $expenseCategories = \App\Models\Category::query()->expense()->orderBy('name')->get();
-
-        return view('transactions.edit', compact('transaction', 'accounts', 'incomeCategories', 'expenseCategories'));
+        return view('transactions.edit', compact('transaction'));
     }
 
     public function update(UpdateTransactionRequest $request, Transaction $transaction): RedirectResponse
