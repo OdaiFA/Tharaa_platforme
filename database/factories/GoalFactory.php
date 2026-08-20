@@ -17,6 +17,7 @@ class GoalFactory extends Factory
             'name' => fake()->randomElement(['شراء سيارة', 'رحلة العائلة', 'صندوق الطوارئ', 'جهاز جديد', 'دراسة إضافية']),
             'target_amount' => fake()->randomFloat(2, 1000, 100000),
             'current_amount' => fake()->randomFloat(2, 0, 5000),
+            'currency_code' => 'SAR',
             'deadline' => fake()->optional()->dateTimeBetween('+1 month', '+3 years')?->format('Y-m-d'),
             'priority' => fake()->randomElement(['low', 'medium', 'high']),
             'status' => 'active',

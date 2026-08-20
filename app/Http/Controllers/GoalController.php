@@ -32,6 +32,7 @@ class GoalController extends Controller
     {
         $this->goals->create(array_merge($request->validated(), [
             'user_id' => auth()->id(),
+            'currency_code' => $request->validated('currency_code') ?? auth()->user()->currency,
         ]));
 
         return redirect()->route('goals.index')->with('success', 'تم إنشاء الهدف بنجاح');

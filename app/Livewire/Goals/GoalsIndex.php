@@ -58,7 +58,10 @@ class GoalsIndex extends Component
                 null,
             );
         } catch (\DomainException|\InvalidArgumentException $e) {
-            $this->addError('amount', $e->getMessage());
+            // Currency mismatch is about which account was picked, not the
+            // amount — route it to the field the user actually needs to fix.
+            $isCurrencyMismatch = $e->getMessage() === 'لا يمكن المساهمة بعملة مختلفة عن عملة الهدف';
+            $this->addError($isCurrencyMismatch ? 'account_id' : 'amount', $e->getMessage());
 
             return;
         }

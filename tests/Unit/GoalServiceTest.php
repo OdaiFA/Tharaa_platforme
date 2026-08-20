@@ -104,38 +104,48 @@ class GoalServiceTest extends TestCase
     }
 
     /**
-     * KNOWN GAP — documented, not silently fixed (see
-     * docs/financial-hardening/MULTI_CURRENCY_FINANCIAL_HARDENING.md,
-     * "Goal Currency Rule").
-     *
-     * The `goals` table has no `currency` column, and `goal_contributions`'
-     * `account_id` is nullable, so there is no reliable way to derive "the"
-     * currency of a goal from existing schema without a migration. This
-     * test documents the current, unenforced behavior: contributions from
-     * accounts of different currencies are both accepted and summed
-     * directly into `current_amount` with no currency tracking at all.
-     * If this test ever starts failing because contribute() now rejects
-     * a currency mismatch, update this test and the "Goal Currency Rule"
-     * section of the doc together — don't just delete it.
+     * The GOAL CURRENCY DECISION REQUIRED gap (documented in Batch 1/2 of
+     * docs/financial-hardening/) is now resolved by `goals.currency_code`
+     * (see docs/financial-hardening/GOAL_CURRENCY_ARCHITECTURE.md) — a
+     * contribution from an account in a different currency than the goal
+     * must now be rejected, not silently summed in.
      */
-    public function test_contributions_from_different_currency_accounts_are_not_currently_currency_checked(): void
+    public function test_contribution_from_a_different_currency_account_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $usdAccount = Account::factory()->create(['user_id' => $user->id, 'currency' => 'USD', 'balance' => 1000]);
+        $goal = Goal::factory()->create(['user_id' => $user->id, 'currency_code' => 'SAR', 'target_amount' => 10000, 'current_amount' => 0]);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        app(GoalService::class)->contribute($goal, 100, $usdAccount->id);
+    }
+
+    public function test_contribution_from_the_same_currency_account_succeeds(): void
     {
         Event::fake([\App\Events\GoalContributionAdded::class]);
 
         $user = User::factory()->create();
         $sarAccount = Account::factory()->create(['user_id' => $user->id, 'currency' => 'SAR', 'balance' => 1000]);
-        $usdAccount = Account::factory()->create(['user_id' => $user->id, 'currency' => 'USD', 'balance' => 1000]);
-        $goal = Goal::factory()->create(['user_id' => $user->id, 'target_amount' => 10000, 'current_amount' => 0]);
+        $goal = Goal::factory()->create(['user_id' => $user->id, 'currency_code' => 'SAR', 'target_amount' => 10000, 'current_amount' => 0]);
 
-        $service = app(GoalService::class);
-        $service->contribute($goal, 100, $sarAccount->id);
-        $service->contribute($goal, 100, $usdAccount->id);
+        app(GoalService::class)->contribute($goal, 100, $sarAccount->id);
 
-        // Both contributions succeed and are summed together, even though
-        // they are drawn from accounts in different currencies — this is
-        // the exact gap flagged as GOAL CURRENCY DECISION REQUIRED.
-        $this->assertSame(200.0, (float) $goal->fresh()->current_amount);
-        $this->assertSame(2, $goal->contributions()->count());
+        $this->assertSame(100.0, (float) $goal->fresh()->current_amount);
+    }
+
+    public function test_off_book_contribution_without_an_account_is_unaffected_by_currency_checking(): void
+    {
+        Event::fake([\App\Events\GoalContributionAdded::class]);
+
+        $user = User::factory()->create();
+        $goal = Goal::factory()->create(['user_id' => $user->id, 'currency_code' => 'SAR', 'target_amount' => 10000, 'current_amount' => 0]);
+
+        // No account_id means there is nothing to compare the goal's
+        // currency against — a manual/off-book contribution is unaffected.
+        app(GoalService::class)->contribute($goal, 100, null);
+
+        $this->assertSame(100.0, (float) $goal->fresh()->current_amount);
     }
 
     public function test_milestones_reflect_progress(): void

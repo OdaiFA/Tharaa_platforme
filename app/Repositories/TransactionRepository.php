@@ -46,6 +46,29 @@ class TransactionRepository extends BaseRepository
     }
 
     /**
+     * Platform-wide transaction volume per currency (all users, all types).
+     *
+     * Same rationale as incomeForPeriod()/expenseForPeriod(): transactions
+     * have no currency of their own, only their account does, so summing
+     * across accounts of different currencies would produce the same
+     * invalid mixed total as the original account-balance bug.
+     *
+     * @return array<string, float>
+     */
+    public function totalVolumeByCurrency(): array
+    {
+        return Transaction::query()
+            ->join('accounts', 'accounts.id', '=', 'transactions.account_id')
+            ->whereNull('transactions.deleted_at')
+            ->selectRaw('accounts.currency as currency, SUM(transactions.amount) as total')
+            ->groupBy('accounts.currency')
+            ->orderBy('accounts.currency')
+            ->pluck('total', 'currency')
+            ->map(fn ($total) => (float) $total)
+            ->all();
+    }
+
+    /**
      * @return array<string, float>
      */
     private function sumByCurrencyForType(int $userId, string $type, $start, $end): array

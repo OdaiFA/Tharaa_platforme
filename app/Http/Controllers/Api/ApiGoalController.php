@@ -28,7 +28,9 @@ class ApiGoalController extends Controller
 
     public function store(StoreGoalRequest $request): JsonResponse
     {
-        $goal = $request->user()->goals()->create($request->validated());
+        $goal = $request->user()->goals()->create(array_merge($request->validated(), [
+            'currency_code' => $request->validated('currency_code') ?? $request->user()->currency,
+        ]));
 
         return (new GoalResource($goal))->response()->setStatusCode(201);
     }
@@ -37,7 +39,7 @@ class ApiGoalController extends Controller
     {
         $this->authorize('view', $goal);
 
-        return new GoalResource($goal->load('contributions'));
+        return (new GoalResource($goal->load('contributions')))->response();
     }
 
     public function contribute(ContributeGoalRequest $request, Goal $goal): JsonResponse
@@ -69,7 +71,7 @@ class ApiGoalController extends Controller
 
         $goal->update($request->validated());
 
-        return new GoalResource($goal->fresh());
+        return (new GoalResource($goal->fresh()))->response();
     }
 
     public function destroy(Request $request, Goal $goal): JsonResponse

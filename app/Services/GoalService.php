@@ -33,6 +33,15 @@ class GoalService
 
         if ($accountId) {
             $account = Account::forUser($goal->user_id)->findOrFail($accountId);
+
+            // No exchange-rate source exists in this codebase — a
+            // contribution drawn from an account in a different currency
+            // than the goal would silently misrepresent its value (the same
+            // MVP-safe same-currency rule already applied to transfers).
+            if ($account->currency !== $goal->currency_code) {
+                throw new \InvalidArgumentException('لا يمكن المساهمة بعملة مختلفة عن عملة الهدف');
+            }
+
             if ((float) $account->balance < $amount) {
                 throw new \DomainException('رصيد الحساب غير كافٍ');
             }

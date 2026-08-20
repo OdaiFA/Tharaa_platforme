@@ -12,11 +12,26 @@
             @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
 
-        <div>
-            <label for="target_amount" class="mb-1.5 block text-sm font-medium text-gray-700">المبلغ المستهدف</label>
-            <input id="target_amount" type="number" step="0.01" min="1" wire:model="target_amount"
-                class="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20">
-            @error('target_amount') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+                <label for="target_amount" class="mb-1.5 block text-sm font-medium text-gray-700">المبلغ المستهدف</label>
+                <input id="target_amount" type="number" step="0.01" min="1" wire:model="target_amount"
+                    class="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20">
+                @error('target_amount') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
+            @if ($goalId)
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700">العملة</label>
+                    <p class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-500">{{ $currency_code }}</p>
+                </div>
+            @else
+                <div>
+                    <label for="currency_code" class="mb-1.5 block text-sm font-medium text-gray-700">العملة</label>
+                    <input id="currency_code" type="text" wire:model="currency_code" maxlength="3"
+                        class="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm uppercase focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20">
+                    @error('currency_code') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+            @endif
         </div>
 
         @unless ($goalId)

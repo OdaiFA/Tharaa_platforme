@@ -35,14 +35,14 @@
                 </div>
                 <div class="mt-3 flex items-center justify-between text-sm">
                     <span class="text-gray-500">
-                        <b class="text-gray-800">{{ number_format($goal->current_amount, 2) }}</b> / {{ number_format($goal->target_amount, 2) }} {{ auth()->user()->currency }}
+                        <b class="text-gray-800">{{ number_format($goal->current_amount, 2) }}</b> / {{ number_format($goal->target_amount, 2) }} {{ $goal->currency_code }}
                     </span>
                     <span class="font-bold text-gray-600">{{ $goal->progress_percentage }}%</span>
                 </div>
 
                 @if ($contributingGoalId === $goal->id)
                     <div class="mt-4 border-t border-gray-50 pt-3">
-                        <p class="text-xs text-gray-500">المتبقي: {{ number_format(max($goal->target_amount - $goal->current_amount, 0), 2) }} {{ auth()->user()->currency }}</p>
+                        <p class="text-xs text-gray-500">المتبقي: {{ number_format(max($goal->target_amount - $goal->current_amount, 0), 2) }} {{ $goal->currency_code }}</p>
 
                         <label class="mt-3 mb-1.5 block text-sm font-medium text-gray-700">المبلغ</label>
                         <input type="number" wire:model="amount" step="0.01" min="0.01" autofocus class="input-field">
@@ -52,9 +52,11 @@
                         <select wire:model="account_id" class="input-field">
                             <option value="">—</option>
                             @foreach ($accounts as $account)
-                                <option value="{{ $account->id }}">{{ $account->name }}</option>
+                                <option value="{{ $account->id }}">{{ $account->name }} ({{ $account->currency }})</option>
                             @endforeach
                         </select>
+                        <p class="mt-1 text-xs text-gray-400">عملة الهدف: {{ $goal->currency_code }} — يجب أن يكون الحساب بنفس العملة</p>
+                        @error('account_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
 
                         <label class="mt-3 mb-1.5 block text-sm font-medium text-gray-700">ملاحظة (اختياري)</label>
                         <input type="text" wire:model="note" maxlength="255" class="input-field">

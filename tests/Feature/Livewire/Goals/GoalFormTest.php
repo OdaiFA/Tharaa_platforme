@@ -33,6 +33,52 @@ class GoalFormTest extends TestCase
         ]);
     }
 
+    public function test_user_can_create_a_goal_with_an_explicit_currency(): void
+    {
+        $user = User::factory()->create();
+
+        Livewire::actingAs($user)
+            ->test(GoalForm::class)
+            ->set('name', 'هدف بالدولار')
+            ->set('target_amount', '5000')
+            ->set('currency_code', 'USD')
+            ->set('deadline', now()->addMonth()->format('Y-m-d'))
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('goals', [
+            'user_id' => $user->id,
+            'name' => 'هدف بالدولار',
+            'currency_code' => 'USD',
+        ]);
+    }
+
+    public function test_goal_defaults_to_the_users_own_currency_when_creating(): void
+    {
+        $user = User::factory()->create(['currency' => 'EUR']);
+
+        Livewire::actingAs($user)
+            ->test(GoalForm::class)
+            ->assertSet('currency_code', 'EUR');
+    }
+
+    public function test_currency_is_not_editable_after_creation(): void
+    {
+        $user = User::factory()->create();
+        $goal = Goal::factory()->for($user)->create(['currency_code' => 'SAR', 'deadline' => now()->addMonth()]);
+
+        Livewire::actingAs($user)
+            ->test(GoalForm::class, ['goalId' => $goal->id])
+            ->assertSet('currency_code', 'SAR')
+            ->set('name', 'اسم محدث')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        // currency_code was never part of the update payload — confirm it
+        // is untouched regardless of what the (read-only) property holds.
+        $this->assertSame('SAR', $goal->fresh()->currency_code);
+    }
+
     public function test_required_fields_are_validated(): void
     {
         $user = User::factory()->create();

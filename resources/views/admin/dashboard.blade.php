@@ -26,7 +26,14 @@
         <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <p class="text-xs font-medium text-gray-500">المعاملات</p>
             <p class="mt-1 text-2xl font-extrabold text-gray-900">{{ $stats['transactions'] }}</p>
-            <p class="mt-1 text-xs text-gray-500">بحجم {{ number_format($stats['transaction_volume'], 2) }}</p>
+            <p class="mt-1 text-xs text-gray-500">
+                بحجم
+                @forelse ($stats['transaction_volume_by_currency'] as $currency => $amount)
+                    {{ number_format($amount, 2) }} {{ $currency }}@if (! $loop->last),@endif
+                @empty
+                    0.00
+                @endforelse
+            </p>
         </div>
     </div>
 

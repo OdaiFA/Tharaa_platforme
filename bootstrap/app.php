@@ -24,5 +24,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->throttleApi('60,1');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Business-rule violations thrown throughout the service layer
+        // (insufficient balance, currency mismatch, exhausted quiz
+        // attempts, etc.) are usually caught locally where they're thrown
+        // and turned into a friendly inline error. This is the global
+        // fallback for any path that doesn't — without it, an uncaught
+        // \DomainException or \InvalidArgumentException renders as a raw
+        // 500 / stack trace instead of a message the user can act on.
+        $render = function (\Throwable $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            return back()->withErrors(['error' => $e->getMessage()])->withInput();
+        };
+
+        $exceptions->renderable(fn (\DomainException $e, $request) => $render($e, $request));
+        $exceptions->renderable(fn (\InvalidArgumentException $e, $request) => $render($e, $request));
     })->create();

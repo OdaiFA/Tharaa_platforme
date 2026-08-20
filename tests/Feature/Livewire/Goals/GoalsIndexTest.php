@@ -76,6 +76,40 @@ class GoalsIndexTest extends TestCase
         $this->assertEquals(0, $goal->fresh()->current_amount);
     }
 
+    public function test_cross_currency_contribution_is_rejected_with_a_clear_error(): void
+    {
+        $user = User::factory()->create();
+        $usdAccount = Account::factory()->for($user)->create(['currency' => 'USD', 'balance' => 1000]);
+        $goal = Goal::factory()->for($user)->create(['currency_code' => 'SAR', 'target_amount' => 500, 'current_amount' => 0]);
+
+        Livewire::actingAs($user)
+            ->test(GoalsIndex::class)
+            ->call('startContribute', $goal->id)
+            ->set('amount', '200')
+            ->set('account_id', (string) $usdAccount->id)
+            ->call('contribute')
+            ->assertHasErrors(['account_id']);
+
+        $this->assertEquals(0, $goal->fresh()->current_amount);
+    }
+
+    public function test_same_currency_contribution_succeeds(): void
+    {
+        $user = User::factory()->create();
+        $sarAccount = Account::factory()->for($user)->create(['currency' => 'SAR', 'balance' => 1000]);
+        $goal = Goal::factory()->for($user)->create(['currency_code' => 'SAR', 'target_amount' => 500, 'current_amount' => 0]);
+
+        Livewire::actingAs($user)
+            ->test(GoalsIndex::class)
+            ->call('startContribute', $goal->id)
+            ->set('amount', '200')
+            ->set('account_id', (string) $sarAccount->id)
+            ->call('contribute')
+            ->assertHasNoErrors();
+
+        $this->assertEquals(200, $goal->fresh()->current_amount);
+    }
+
     public function test_delete_requires_confirmation_and_preserves_contributions(): void
     {
         $user = User::factory()->create();

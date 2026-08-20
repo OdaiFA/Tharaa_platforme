@@ -114,26 +114,53 @@
                 });
             }
 
+            // One currency never gets summed into another's total (no FX
+            // conversion exists in this app) — each currency present in the
+            // data gets its own income/expense dataset pair, built here in
+            // PHP and only rendered by Chart.js. The color palettes below
+            // keep the first (and, for the common single-currency case,
+            // only) currency visually identical to the original chart.
+            const incomeColors = ['#22c55e', '#4ade80', '#15803d', '#86efac', '#059669'];
+            const expenseColors = ['#ef4444', '#f87171', '#b91c1c', '#fca5a5', '#dc2626'];
+            const categoryColors = ['#1c80f1', '#d4af37', '#22c55e', '#a855f7', '#f97316'];
+
             if (chartData.financialActivity.months.length) {
+                const datasets = [];
+                chartData.financialActivity.series.forEach((series, i) => {
+                    datasets.push({
+                        label: `مداخيل — ${series.currency}`,
+                        data: series.income,
+                        backgroundColor: incomeColors[i % incomeColors.length],
+                    });
+                    datasets.push({
+                        label: `مصاريف — ${series.currency}`,
+                        data: series.expense,
+                        backgroundColor: expenseColors[i % expenseColors.length],
+                    });
+                });
+
                 renderChart('financialChart', {
                     type: 'bar',
                     data: {
                         labels: chartData.financialActivity.months,
-                        datasets: [
-                            { label: 'مداخيل', data: chartData.financialActivity.income, backgroundColor: '#22c55e' },
-                            { label: 'مصاريف', data: chartData.financialActivity.expense, backgroundColor: '#ef4444' },
-                        ],
+                        datasets: datasets,
                     },
                     options: { responsive: true, scales: { x: { stacked: false } } },
                 });
             }
 
-            if (chartData.topCategories.data.length) {
+            if (chartData.topCategories.labels.length) {
+                const datasets = chartData.topCategories.series.map((series, i) => ({
+                    label: series.currency,
+                    data: series.data,
+                    backgroundColor: categoryColors[i % categoryColors.length],
+                }));
+
                 renderChart('topCategoriesChart', {
                     type: 'bar',
                     data: {
                         labels: chartData.topCategories.labels,
-                        datasets: [{ label: 'إجمالي الإنفاق', data: chartData.topCategories.data, backgroundColor: '#1c80f1' }],
+                        datasets: datasets,
                     },
                     options: { indexAxis: 'y', responsive: true },
                 });

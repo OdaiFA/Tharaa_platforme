@@ -14,6 +14,7 @@ class GoalResource extends JsonResource
             'name' => $this->name,
             'target_amount' => (float) $this->target_amount,
             'current_amount' => (float) $this->current_amount,
+            'currency_code' => $this->currency_code,
             'progress_percentage' => $this->progress_percentage,
             'deadline' => $this->deadline?->format('Y-m-d'),
             'priority' => $this->priority,

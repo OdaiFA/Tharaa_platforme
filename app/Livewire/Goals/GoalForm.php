@@ -17,6 +17,8 @@ class GoalForm extends Component
 
     public string $current_amount = '0';
 
+    public string $currency_code = 'SAR';
+
     public ?string $deadline = null;
 
     public string $priority = 'medium';
@@ -32,9 +34,12 @@ class GoalForm extends Component
             $this->goalId = $goal->id;
             $this->name = $goal->name;
             $this->target_amount = (string) $goal->target_amount;
+            $this->currency_code = $goal->currency_code;
             $this->deadline = optional($goal->deadline)->format('Y-m-d');
             $this->priority = $goal->priority;
             $this->icon = $goal->icon;
+        } else {
+            $this->currency_code = auth()->user()->currency;
         }
     }
 
@@ -46,6 +51,14 @@ class GoalForm extends Component
             'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
             'icon' => ['nullable', 'string', 'max:255'],
         ];
+
+        // Currency is fixed at creation and not editable afterward — past
+        // contributions were already validated against it, so changing it
+        // later would retroactively invalidate that guarantee. Same pattern
+        // as AccountForm's create-only initial_balance.
+        if (! $this->goalId) {
+            $rules['currency_code'] = ['required', 'string', 'size:3'];
+        }
 
         $rules['deadline'] = $this->goalId
             ? ['required', 'date']
@@ -60,6 +73,8 @@ class GoalForm extends Component
             'name.required' => 'اسم الهدف مطلوب',
             'target_amount.required' => 'المبلغ المستهدف مطلوب',
             'target_amount.min' => 'المبلغ المستهدف يجب أن يكون أكبر من صفر',
+            'currency_code.required' => 'عملة الهدف مطلوبة',
+            'currency_code.size' => 'رمز العملة يجب أن يكون 3 أحرف',
             'deadline.required' => 'تاريخ الانتهاء مطلوب',
             'deadline.after_or_equal' => 'تاريخ الانتهاء يجب أن يكون اليوم أو في المستقبل',
             'priority.required' => 'الأولوية مطلوبة',

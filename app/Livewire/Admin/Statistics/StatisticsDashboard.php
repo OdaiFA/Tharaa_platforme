@@ -22,10 +22,16 @@ class StatisticsDashboard extends Component
             ->limit(10)
             ->get();
 
+        // Transactions have no currency of their own — it's implied by the
+        // owning account (same rule applied throughout the financial
+        // module). Grouping by account currency alongside month/type keeps
+        // a SAR total and a USD total from ever being summed into one
+        // meaningless number.
         $financialActivity = Transaction::query()
-            ->whereNull('deleted_at')
-            ->selectRaw('DATE_FORMAT(transaction_date, "%Y-%m") as month, type, SUM(amount) as total')
-            ->groupBy('month', 'type')
+            ->join('accounts', 'accounts.id', '=', 'transactions.account_id')
+            ->whereNull('transactions.deleted_at')
+            ->selectRaw('DATE_FORMAT(transactions.transaction_date, "%Y-%m") as month, transactions.type as type, accounts.currency as currency, SUM(transactions.amount) as total')
+            ->groupBy('month', 'transactions.type', 'accounts.currency')
             ->orderBy('month')
             ->limit(24)
             ->get();
@@ -40,19 +46,44 @@ class StatisticsDashboard extends Component
             'pass_rate' => $attempts > 0 ? round(($passed / $attempts) * 100, 1) : 0,
         ];
 
+        // Same rule for category spend: a category's SAR spend and USD
+        // spend are two different rows, never combined.
         $topCategories = DB::table('transactions')
             ->join('categories', 'categories.id', '=', 'transactions.category_id')
+            ->join('accounts', 'accounts.id', '=', 'transactions.account_id')
             ->where('transactions.type', 'expense')
             ->whereNull('transactions.deleted_at')
-            ->selectRaw('categories.name, SUM(transactions.amount) as total')
-            ->groupBy('categories.name')
+            ->selectRaw('categories.name as name, accounts.currency as currency, SUM(transactions.amount) as total')
+            ->groupBy('categories.name', 'accounts.currency')
             ->orderByDesc('total')
             ->limit(10)
             ->get();
 
-        $months = $financialActivity->pluck('month')->unique()->values();
-        $incomeByMonth = $financialActivity->where('type', 'income')->pluck('total', 'month');
-        $expenseByMonth = $financialActivity->where('type', 'expense')->pluck('total', 'month');
+        $months = $financialActivity->pluck('month')->unique()->sort()->values();
+        $financialCurrencies = $financialActivity->pluck('currency')->unique()->sort()->values();
+
+        $financialSeries = $financialCurrencies->map(function ($currency) use ($financialActivity, $months) {
+            $income = $financialActivity->where('currency', $currency)->where('type', 'income')->pluck('total', 'month');
+            $expense = $financialActivity->where('currency', $currency)->where('type', 'expense')->pluck('total', 'month');
+
+            return [
+                'currency' => $currency,
+                'income' => $months->map(fn ($month) => (float) ($income[$month] ?? 0))->values(),
+                'expense' => $months->map(fn ($month) => (float) ($expense[$month] ?? 0))->values(),
+            ];
+        })->values();
+
+        $categoryLabels = $topCategories->pluck('name')->unique()->values();
+        $categoryCurrencies = $topCategories->pluck('currency')->unique()->sort()->values();
+
+        $categorySeries = $categoryCurrencies->map(function ($currency) use ($topCategories, $categoryLabels) {
+            $byName = $topCategories->where('currency', $currency)->pluck('total', 'name');
+
+            return [
+                'currency' => $currency,
+                'data' => $categoryLabels->map(fn ($name) => (float) ($byName[$name] ?? 0))->values(),
+            ];
+        })->values();
 
         $chartData = [
             'usersByRole' => [
@@ -65,12 +96,11 @@ class StatisticsDashboard extends Component
             ],
             'financialActivity' => [
                 'months' => $months,
-                'income' => $months->map(fn ($month) => (float) ($incomeByMonth[$month] ?? 0)),
-                'expense' => $months->map(fn ($month) => (float) ($expenseByMonth[$month] ?? 0)),
+                'series' => $financialSeries,
             ],
             'topCategories' => [
-                'labels' => $topCategories->pluck('name'),
-                'data' => $topCategories->pluck('total'),
+                'labels' => $categoryLabels,
+                'series' => $categorySeries,
             ],
         ];
 

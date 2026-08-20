@@ -7,11 +7,12 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Repositories\TransactionRepository;
 use Illuminate\View\View;
 
 class AdminDashboardController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(TransactionRepository $transactions): View
     {
         $stats = [
             'users' => User::count(),
@@ -20,7 +21,9 @@ class AdminDashboardController extends Controller
             'published_courses' => Course::where('is_published', true)->count(),
             'enrollments' => Enrollment::count(),
             'transactions' => Transaction::count(),
-            'transaction_volume' => (float) Transaction::whereNull('deleted_at')->sum('amount'),
+            // Grouped by currency, never summed across currencies — reuses
+            // the same strategy as AccountRepository::totalBalanceForUser().
+            'transaction_volume_by_currency' => $transactions->totalVolumeByCurrency(),
         ];
 
         $userGrowth = User::query()
