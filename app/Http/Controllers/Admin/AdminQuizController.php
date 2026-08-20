@@ -13,8 +13,6 @@ class AdminQuizController extends Controller
 {
     public function index(Lesson $lesson): View
     {
-        $lesson->load('quiz.questions');
-
         return view('admin.quizzes.index', compact('lesson'));
     }
 

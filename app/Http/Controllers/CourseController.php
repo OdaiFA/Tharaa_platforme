@@ -17,22 +17,12 @@ class CourseController extends Controller
 
     public function index(): View
     {
-        $courses = $this->courses->published([
-            'level' => request('level'),
-            'age_group_id' => request('age_group_id'),
-            'search' => request('search'),
-        ]);
-
-        return view('courses.index', compact('courses'));
+        return view('courses.index');
     }
 
     public function recommended(): View
     {
-        $ageGroupId = auth()->user()?->age_group_id;
-
-        $courses = $this->courses->recommendedFor($ageGroupId);
-
-        return view('courses.recommended', compact('courses'));
+        return view('courses.recommended');
     }
 
     public function show(Course $course): View
@@ -41,11 +31,7 @@ class CourseController extends Controller
             abort(404);
         }
 
-        $enrollment = auth()->check()
-            ? auth()->user()->enrollments()->where('course_id', $course->id)->first()
-            : null;
-
-        return view('courses.show', compact('course', 'enrollment'));
+        return view('courses.show', compact('course'));
     }
 
     public function enroll(Course $course): RedirectResponse
@@ -61,14 +47,6 @@ class CourseController extends Controller
     {
         $this->authorize('learn', $course);
 
-        $enrollment = auth()->user()->enrollments()->where('course_id', $course->id)->firstOrFail();
-        $completedLessons = $enrollment->lessonProgress()
-            ->where('status', 'completed')
-            ->pluck('lesson_id')
-            ->all();
-
-        $course->load(['modules.lessons.quiz']);
-
-        return view('courses.learn', compact('course', 'enrollment', 'completedLessons'));
+        return view('courses.learn', compact('course'));
     }
 }

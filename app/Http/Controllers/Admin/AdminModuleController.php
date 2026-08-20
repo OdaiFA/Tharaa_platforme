@@ -13,8 +13,6 @@ class AdminModuleController extends Controller
 {
     public function index(Course $course): View
     {
-        $course->load(['modules.lessons']);
-
         return view('admin.modules.index', compact('course'));
     }
 

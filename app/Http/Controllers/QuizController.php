@@ -18,16 +18,7 @@ class QuizController extends Controller
     {
         $this->authorize('take', $quiz);
 
-        if (! $this->quizService->canAttempt(auth()->user(), $quiz)) {
-            return view('quizzes.exhausted', ['quiz' => $quiz]);
-        }
-
-        $attemptCount = QuizAttempt::query()
-            ->where('user_id', auth()->id())
-            ->where('quiz_id', $quiz->id)
-            ->count();
-
-        return view('quizzes.show', compact('quiz', 'attemptCount'));
+        return view('quizzes.show', compact('quiz'));
     }
 
     public function submit(Request $request, Quiz $quiz): RedirectResponse

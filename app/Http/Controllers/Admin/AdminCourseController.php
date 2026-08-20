@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCourseRequest;
 use App\Http\Requests\Admin\UpdateCourseRequest;
-use App\Models\AgeGroup;
 use App\Models\Course;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
@@ -20,9 +19,7 @@ class AdminCourseController extends Controller
 
     public function create(): View
     {
-        $ageGroups = AgeGroup::all();
-
-        return view('admin.courses.create', compact('ageGroups'));
+        return view('admin.courses.create');
     }
 
     public function store(StoreCourseRequest $request): RedirectResponse
@@ -44,10 +41,7 @@ class AdminCourseController extends Controller
 
     public function edit(Course $course): View
     {
-        $ageGroups = AgeGroup::all();
-        $course->load('ageGroups', 'modules.lessons.quiz.questions');
-
-        return view('admin.courses.edit', compact('course', 'ageGroups'));
+        return view('admin.courses.edit', compact('course'));
     }
 
     public function update(UpdateCourseRequest $request, Course $course): RedirectResponse

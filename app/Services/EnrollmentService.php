@@ -35,6 +35,18 @@ class EnrollmentService
 
     /**
      * Recalculate enrollment progress from lesson progress (BR-EDU-008).
+     *
+     * This is the single authoritative path to course-completion detection
+     * (see completeLesson()) — checkCourseCompletion() is always called
+     * here so that re-evaluating progress after a NEW fact (e.g. a quiz
+     * being passed after the lesson was already marked complete) can still
+     * discover a fresh certificate-eligibility state. Re-dispatching
+     * CourseCompleted for an enrollment that was already 'completed' is
+     * intentionally allowed — every CourseCompleted listener is itself
+     * idempotent (see IssueCertificate / SendCongratulationNotification),
+     * so repeated dispatch is safe and is how eligibility changes (like a
+     * quiz newly passing) get picked up without a second completion event
+     * type.
      */
     public function updateProgress(Enrollment $enrollment): void
     {
@@ -50,6 +62,7 @@ class EnrollmentService
 
         if ($totalLessons > 0) {
             $percentage = (int) round(($completedLessons / $totalLessons) * 100);
+
             $enrollment->update([
                 'progress_percentage' => $percentage,
                 'status' => $percentage >= 100 ? 'completed' : ($percentage > 0 ? 'in_progress' : 'enrolled'),
@@ -61,6 +74,16 @@ class EnrollmentService
 
     /**
      * Mark a lesson as completed for a user (BR-EDU-008).
+     *
+     * Always dispatches LessonCompleted, even for an already-completed
+     * lesson — this is intentional: a lesson-completion call can also be
+     * the signal that certificate eligibility should be re-checked (e.g.
+     * QuizService::submitAttempt() calls this after a passing attempt,
+     * which may happen after the lesson was already manually completed).
+     * Duplicate progress ROWS are prevented structurally by
+     * updateOrCreate(); duplicate SIDE EFFECTS (certificates,
+     * notifications) are prevented by making each downstream listener
+     * idempotent rather than by blocking the event here.
      */
     public function completeLesson(User $user, Lesson $lesson): LessonProgress
     {
@@ -81,18 +104,30 @@ class EnrollmentService
             ]
         );
 
+        // updateProgress() runs synchronously inside the UpdateEnrollmentProgress
+        // listener triggered by this dispatch — it is the single authoritative
+        // path to course-completion detection, so it is intentionally not
+        // called again here.
         LessonCompleted::dispatch($user, $lesson, $enrollment);
-
-        $this->updateProgress($enrollment->fresh());
 
         return $progress;
     }
 
     /**
      * Issue a certificate when course requirements are met (BR-EDU-012).
+     *
+     * Idempotent: if a certificate was already issued for this enrollment,
+     * the existing state is returned as-is rather than regenerating a new
+     * PDF/code — this is required because CourseCompleted can legitimately
+     * be observed more than once by a caller (e.g. manual re-checks), and
+     * this is the authoritative guard against duplicate certificates.
      */
     public function issueCertificate(Enrollment $enrollment): bool
     {
+        if ($enrollment->certificate_issued) {
+            return true;
+        }
+
         $course = $enrollment->course;
 
         if (! $course->certificate_enabled) {
@@ -113,14 +148,28 @@ class EnrollmentService
 
         $pdf = Pdf::loadView('certificates.template', $payload);
         $filename = 'certificates/' . $payload['certificate_code'] . '.pdf';
-        Storage::disk('public')->put($filename, $pdf->output());
 
-        $enrollment->update([
-            'certificate_issued' => true,
-            'certificate_url' => $filename,
-            'completed_at' => now(),
-            'status' => 'completed',
-        ]);
+        $written = Storage::disk('public')->put($filename, $pdf->output());
+
+        if (! $written) {
+            return false;
+        }
+
+        try {
+            $enrollment->update([
+                'certificate_issued' => true,
+                'certificate_url' => $filename,
+                'completed_at' => now(),
+                'status' => 'completed',
+            ]);
+        } catch (\Throwable $e) {
+            // The PDF was written but the DB state could not be persisted —
+            // clean up the orphaned file rather than leaving a certificate
+            // on disk with no corresponding enrollment record.
+            Storage::disk('public')->delete($filename);
+
+            throw $e;
+        }
 
         return true;
     }

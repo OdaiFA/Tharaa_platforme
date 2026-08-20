@@ -8,12 +8,13 @@ use App\Models\Course;
 use App\Services\EnrollmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ApiCourseController extends Controller
 {
     public function __construct(private readonly EnrollmentService $enrollments) {}
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): AnonymousResourceCollection
     {
         $courses = Course::query()
             ->published()
@@ -28,7 +29,7 @@ class ApiCourseController extends Controller
         return CourseResource::collection($courses);
     }
 
-    public function recommended(Request $request): JsonResponse
+    public function recommended(Request $request): AnonymousResourceCollection
     {
         $ageGroupId = $request->user()?->age_group_id;
 
