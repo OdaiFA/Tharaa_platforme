@@ -6,32 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreArticleRequest;
 use App\Http\Requests\Admin\UpdateArticleRequest;
 use App\Models\Article;
-use App\Models\ArticleCategory;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class AdminArticleController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
-        $articles = Article::query()
-            ->with('category')
-            ->withTrashed()
-            ->when($request->input('search'), fn ($q, $search) => $q->where('title', 'like', "%{$search}%"))
-            ->when($request->boolean('published'), fn ($q) => $q->where('is_published', true))
-            ->latest()
-            ->paginate(10);
-
-        return view('admin.articles.index', compact('articles'));
+        return view('admin.articles.index');
     }
 
     public function create(): View
     {
-        $categories = ArticleCategory::all();
-
-        return view('admin.articles.create', compact('categories'));
+        return view('admin.articles.create');
     }
 
     public function store(StoreArticleRequest $request): RedirectResponse
@@ -52,9 +40,7 @@ class AdminArticleController extends Controller
 
     public function edit(Article $article): View
     {
-        $categories = ArticleCategory::all();
-
-        return view('admin.articles.edit', compact('article', 'categories'));
+        return view('admin.articles.edit', compact('article'));
     }
 
     public function update(UpdateArticleRequest $request, Article $article): RedirectResponse

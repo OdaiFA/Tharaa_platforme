@@ -40,10 +40,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
-    Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
 
     // Accounts
     Route::resource('accounts', AccountController::class)->except(['show']);
@@ -73,8 +71,6 @@ Route::middleware(['auth'])->group(function () {
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
-    Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
 });
 
 // Public discovery
